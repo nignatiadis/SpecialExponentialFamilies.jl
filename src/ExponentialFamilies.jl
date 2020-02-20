@@ -15,7 +15,7 @@ using Random
 import Base:eltype
 import Base.Broadcast: broadcastable
 import Base:minimum, maximum, extrema
-import Distributions:probs, logpdf, pdf, cf, mgf, support, sampler
+import Distributions:probs, logpdf, pdf, cf, mgf, insupport, support, sampler
 import StatsBase:fit, moment
 import Statistics:mean, var
 import Random:rand, AbstractRNG
