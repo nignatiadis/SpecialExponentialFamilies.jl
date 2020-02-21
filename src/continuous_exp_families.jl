@@ -20,8 +20,7 @@ function ContinuousExponentialFamilyModel(base_measure, spline_grid::AbstractVec
    if scale
       Q1 = ns_f(spline_grid)
       mean_Q1 = mean(Q1; dims=1)
-      Q1 = Q1 .- mean_Q1
-      norm_Q1 = vec(sqrt.(sum( abs2.(Q1); dims=1)))
+      norm_Q1 = vec(sqrt.(sum( abs2.(Q1 .- mean_Q1); dims=1)))
       mean_Q1 = vec(mean_Q1)
       scaled_ns_f(x) = (ns_f(x) .- mean_Q1)./norm_Q1
       cef = ContinuousExponentialFamilyModel(base_measure, scaled_ns_f)
@@ -78,7 +77,7 @@ Base.extrema(cef::ContinuousExponentialFamily) = Base.extrema(cef.base_measure)
 
 
 # some notational clash here for now.
-function logpdf(cef::ContinuousExponentialFamily, x; include_base_measure = false)
+function logpdf(cef::ContinuousExponentialFamily, x::Real; include_base_measure = true)
   if include_base_measure
      log_constant =  -cef.log_normalizing_constant + logpdf(cef.base_measure, x)
   else
@@ -87,10 +86,10 @@ function logpdf(cef::ContinuousExponentialFamily, x; include_base_measure = fals
   dot(cef.Q(x),cef.α) + log_constant
 end
 
-pdf(cef::ContinuousExponentialFamily, x; kwargs...) = exp(logpdf(cef, x; kwargs...))
+pdf(cef::ContinuousExponentialFamily, x::Real; kwargs...) = exp(logpdf(cef, x; kwargs...))
 
 support(cef::Union{ContinuousExponentialFamily, ContinuousExponentialFamilyModel}) = support(cef.base_measure)
-insupport(cef::Union{ContinuousExponentialFamily, ContinuousExponentialFamilyModel}, x) = insupport(cef.base_measure, x)
+insupport(cef::Union{ContinuousExponentialFamily, ContinuousExponentialFamilyModel}, x::Real) = insupport(cef.base_measure, x)
 
 mutable struct LindseyMethod{ST}
    grid::ST
@@ -103,8 +102,8 @@ LindseyMethod() = LindseyMethod(500)
 
 
 
-function fit(cefm::ContinuousExponentialFamilyModel, Xs::AbstractVector)
-   fit(cefm, Xs, LindseyMethod)
+function fit(cefm::ContinuousExponentialFamilyModel, Xs::AbstractVector{<:Real})
+   fit(cefm, Xs, LindseyMethod())
 end
 
 function fit(cefm::ContinuousExponentialFamilyModel, Xs::AbstractVector, ls::LindseyMethod{Nothing})
@@ -122,18 +121,19 @@ function fit(cefm::ContinuousExponentialFamilyModel, Xs::AbstractVector, ls::Lin
 end
 
 function fit(cefm::ContinuousExponentialFamilyModel, hist::Histogram, ls::LindseyMethod)
-   mdpts = StatsBase.midpoints(hist.edges[1])
+    mdpts = StatsBase.midpoints(hist.edges[1])
 
-	keep_idx = insupport.(cefm, mdpts)
-	mdpts = mdpts[keep_idx]
-   #poisson_predictor = cefm.Q.(collect(mdpts))
+    keep_idx = insupport.(cefm, mdpts)
+    mdpts = mdpts[keep_idx]
+    #poisson_predictor = cefm.Q.(collect(mdpts))
 	poisson_predictor = vcat(cefm.Q.(mdpts)'...)
-   poisson_predictor = hcat( fill(1.0, length(mdpts)), poisson_predictor)
+    poisson_predictor = hcat( fill(1.0, length(mdpts)), poisson_predictor)
+	poisson_response = hist.weights[keep_idx]
 
-   poisson_offset = pdf.(cefm.base_measure, mdpts)
-   poisson_fit = fit(GeneralizedLinearModel, poisson_predictor, hist.weights,
+    poisson_offset = pdf.(cefm.base_measure, mdpts)
+    poisson_fit = fit(GeneralizedLinearModel, poisson_predictor, poisson_response,
                            Poisson(); offset=poisson_offset)
 
-   αs = coef(poisson_fit)[2:end]
-   ContinuousExponentialFamily(cefm.base_measure, cefm.Q, αs)
+    αs = coef(poisson_fit)[2:end]
+    ContinuousExponentialFamily(cefm.base_measure, cefm.Q, αs)
 end
