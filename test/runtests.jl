@@ -1,6 +1,7 @@
-using ExponentialFamilies
+using SpecialExponentialFamilies
 using Test
+using QuadGK
 
-@testset "ExponentialFamilies.jl" begin
+@testset "SpecialExponentialFamilies.jl" begin
     # Write your own tests here.
 end

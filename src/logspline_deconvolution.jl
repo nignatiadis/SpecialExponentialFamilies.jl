@@ -1,16 +1,16 @@
 ### Fitting Routine through (penalized MLE)
 
-struct EFMarginalDistribution3{EFD, EB, S} <: Distribution{Univariate, S}
+struct EFMarginalDistribution{EFD, EB, S} <: Distribution{Univariate, S}
     efd::EFD
     Z::EB
 end
 
-function EFMarginalDistribution3(efd::EFD, Z::EB) where {EFD, EB<:Empirikos.ContinuousEBayesSample}
-    EFMarginalDistribution3{EFD,EB, Continuous}(efd, Z)
+function EFMarginalDistribution(efd::EFD, Z::EB) where {EFD, EB<:Empirikos.ContinuousEBayesSample}
+    EFMarginalDistribution{EFD,EB, Continuous}(efd, Z)
 end
 
 
-function Distributions.pdf(efm::EFMarginalDistribution3, x)
+function Distributions.pdf(efm::EFMarginalDistribution, x)
     efd = efm.efd
     Z = efm.Z
     _f = μ -> pdf(efd, μ; include_basemeasure=false)*
@@ -18,7 +18,7 @@ function Distributions.pdf(efm::EFMarginalDistribution3, x)
     efd.integrator(_f)
 end
 
-function Distributions.cdf(efm::EFMarginalDistribution3, x::Real)
+function Distributions.cdf(efm::EFMarginalDistribution, x::Real)
     efd = efm.efd
     Z = efm.Z
     _f = μ -> pdf(efd, μ; include_basemeasure=false)*
@@ -30,13 +30,7 @@ function Empirikos.marginalize(Z::EBayesSample, efd::ExponentialFamilyDistributi
     EFMarginalDistribution3(efd, Z)
 end
 
-efm = EFMarginalDistribution3(expfam_ones, StandardNormalSample())
-@test quadgk(x -> pdf(efm, x), -Inf, +Inf)[1] ≈ 1.0
-@test cdf(efm, Inf) == 1.0
-@test ForwardDiff.derivative(x->cdf(efm,x), 1.0) ≈ pdf(efm, 1.0)
-@test pdf(expfam_ones, StandardNormalSample(-2.0)) == pdf(efm, -2.0)
-#function marginalize(Z::AbstractNormalSample, prior::Normal)
-#end
+
 
 
 Base.@kwdef struct PenalizedMLE{EF<:ExponentialFamily, T<:Real}
