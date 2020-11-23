@@ -6,9 +6,14 @@ using Reexport
 @reexport using StatsBase
 
 using Expectations
+using Empirikos
 using GLM
 using LinearAlgebra
-using Splines2
+
+using OffsetArrays
+using LinearAlgebra
+using Statistics
+
 using Random
 using Requires
 
@@ -20,19 +25,18 @@ import StatsBase:fit, moment
 import Statistics:mean, var
 import Random:rand, rand!, AbstractRNG
 
+using UnPack
 
-
-include("discrete_exp_families.jl")
+include("splines.jl")
 include("continuous_exp_families.jl")
+include("lindsey.jl")
 
 function __init__()
     @require ApproxFun="28f2ccd6-bb30-5033-b560-165f7b14dc2f" include("sample_continuous_exp_families.jl")
 end
 
-export DiscreteExponentialFamilyModel,
-       DiscreteExponentialFamily,
-	   ContinuousExponentialFamilyModel,
-	   ContinuousExponentialFamily,
-	   LindseyMethod
+export ExponentialFamily,
+       ExponentialFamilyDistribution,
+       LindseyMethod
 
 end # module

@@ -1,0 +1,34 @@
+
+Base.@kwdef mutable struct LindseyMethod{EF, ST}
+    ef::EF
+    discretizer::ST = Empirikos.Discretizer()
+ end
+
+
+ function StatsBase.fit(lindsey::LindseyMethod, Xs::AbstractVector{<:Real})
+    lindsey = Empirikos.set_defaults(lindsey, Xs)
+    _fit(lindsey, Xs)
+ end
+
+ function _fit(lindsey::LindseyMethod, Xs::AbstractVector{<:Real})
+    Xs_summary = summarize(Xs, lindsey.discretizer)
+    _fit(lindsey, Xs_summary)
+ end
+
+function _fit(lindsey::LindseyMethod, Xs::Empirikos.MultinomialSummary)
+    mdpts = (first.(keys(Xs)) .+ last.(keys(Xs))) ./ 2
+
+    ef = lindsey.ef
+
+     #poisson_predictor = cefm.Q.(collect(mdpts))
+    poisson_predictor = vcat(ef.Q.(mdpts)'...)
+    poisson_predictor = hcat( fill(1.0, length(mdpts)), poisson_predictor)
+    poisson_response = values(StatsBase.weights(Xs))
+    poisson_offset = pdf.(ef.basemeasure, mdpts)
+
+    poisson_fit = fit(GeneralizedLinearModel, poisson_predictor, poisson_response,
+                            Poisson(); offset=poisson_offset)
+
+    αs = coef(poisson_fit)[2:end]
+    ef(αs)
+ end

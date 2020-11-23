@@ -1,8 +1,8 @@
 # TODO: add proper RNG support via ApproxFun pull request....
-function Random.rand!(rng::AbstractRNG, cef::ContinuousExponentialFamily{Uniform{T}} where T<:Real, A::AbstractArray)
+function Random.rand(cef::ExponentialFamilyDistribution, n::Int)
 	approxfun_interval = ApproxFun.Interval{:closed,:closed}(extrema(cef)...)
-	approxfun_fun = ApproxFun.Fun(x->pdf(cef,x, include_base_measure=true), approxfun_interval)
-	A[:] = ApproxFun.sample(approxfun_fun, length(A))
+	approxfun_fun = ApproxFun.Fun(x->pdf(cef,x, include_basemeasure=true), approxfun_interval)
+	ApproxFun.sample(approxfun_fun, n)
 end
 
 

@@ -1,21 +1,23 @@
-struct ContinuousExponentialFamilyModel{BM<:Distribution,
-                                   QF}
-    base_measure::BM
+struct ExponentialFamily{VF,
+                         VS,
+                         BM <: Distribution{VF,VS},
+                         QF,
+                         E} <: Distribution{VF,VS}
+    basemeasure::BM
     Q::QF
-    Q_dim::Int
+    integrator::E
 end
 
-
-function ContinuousExponentialFamilyModel(base_measure, Q)
-   example_eval = Q([0.0])
-   Q_dim = size(example_eval, 2)
-   ContinuousExponentialFamilyModel(base_measure, Q, Q_dim)
+function ExponentialFamily(basemeasure, Q; integrator = expectation(basemeasure; n=100))
+    ExponentialFamily(basemeasure, Q, integrator)
 end
+
 
 # default to using natural splines
-function ContinuousExponentialFamilyModel(base_measure, spline_grid::AbstractVector{<:Real}; df=5, scale=true )
+function ExponentialFamily(; basemeasure, df=5, scale=true, kwargs...)
 
-   ns_f = ns_(spline_grid; df=df)
+   ns_f = ns_(basemeasure; df=df)
+   spline_grid = quantile(basemeasure, 0:0.001:1.0)
 
    if scale
       Q1 = ns_f(spline_grid)
@@ -23,117 +25,77 @@ function ContinuousExponentialFamilyModel(base_measure, spline_grid::AbstractVec
       norm_Q1 = vec(sqrt.(sum( abs2.(Q1 .- mean_Q1); dims=1)))
       mean_Q1 = vec(mean_Q1)
       scaled_ns_f(x) = (ns_f(x) .- mean_Q1)./norm_Q1
-      cef = ContinuousExponentialFamilyModel(base_measure, scaled_ns_f)
+      cef = ExponentialFamily(basemeasure, scaled_ns_f; kwargs...)
    else
-      cef = ContinuousExponentialFamilyModel(base_measure, ns_f)
+      cef = ExponentialFamily(basemeasure, ns_f; kwargs...)
    end
    cef
 end
 
-broadcastable(cefm::ContinuousExponentialFamilyModel) = Ref(cefm)
-Base.minimum(cefm::ContinuousExponentialFamilyModel) = Base.minimum(cefm.base_measure)
-Base.maximum(cefm::ContinuousExponentialFamilyModel) = Base.maximum(cefm.base_measure)
-Base.extrema(cefm::ContinuousExponentialFamilyModel) = Base.extrema(cefm.base_measure)
+broadcastable(ef::ExponentialFamily) = Ref(ef)
+Base.minimum(ef::ExponentialFamily) = Base.minimum(ef.basemeasure)
+Base.maximum(ef::ExponentialFamily) = Base.maximum(ef.basemeasure)
+Base.extrema(ef::ExponentialFamily) = Base.extrema(ef.basemeasure)
 
-struct ContinuousExponentialFamily{BM<:Distribution,
-                                   QF, #should be callable
-                                   T<:Real,
-                                   As<:AbstractVector{T}} <: Distribution{Univariate, Continuous}
-    base_measure::BM
-    Q::QF
+struct ExponentialFamilyDistribution{VF,
+                                     VS,
+                                     EF <: ExponentialFamily{VF,VS},
+                                     T<:Real,
+                                     As<:AbstractVector{T}}  <: Distribution{VF,VS}
+    ef::EF
     α::As
     log_normalizing_constant::T
 end
 
-
-_default_integrator(base_measure, n_points) = expectation(base_measure; n=n_points)
-
-
-function _normalizing_constant(base_measure, Q, α;
-                      n_points = 100,
-                      integrator = _default_integrator(base_measure, n_points))
-   integrator(x -> exp(dot(Q(x), α)))
+function Base.getproperty(exd::ExponentialFamilyDistribution, sym::Symbol)
+    if sym in [:basemeasure, :Q, :integrator]
+        _prop = Base.getproperty(Base.getfield(exd, :ef), sym)
+    else
+        _prop = Base.getfield(exd, sym)
+    end
+    _prop
 end
 
-function ContinuousExponentialFamily(base_measure, Q, α; kwargs...)
-   norm_const = _normalizing_constant(base_measure, Q, α; kwargs...)
-   ContinuousExponentialFamily(base_measure, Q, α, log(norm_const))
+
+function _normalizing_constant(ex::ExponentialFamily, α)
+    ex.integrator(x -> exp(dot(ex.Q(x), α)))
 end
 
+function ExponentialFamilyDistribution(ex::ExponentialFamily, α)
+    norm_const = _normalizing_constant(ex, α)
+    ExponentialFamilyDistribution(ex, α, log(norm_const))
+ end
+
+function ExponentialFamilyDistribution(basemeasure, Q, α; kwargs...)
+   ex = ExponentialFamily(; basemeasure=basemeasure, Q=Q, kwargs...)
+   ExponentialFamilyDistribution(ex, α)
+end
 
 # model -> family
-function (cefm::ContinuousExponentialFamilyModel)(α; kwargs...)
-	ContinuousExponentialFamily(cefm.base_measure, cefm.Q, α; kwargs...)
+function (ex::ExponentialFamily)(α)
+	ExponentialFamilyDistribution(ex, α)
 end
 
 
 
 # some Base definitions
-broadcastable(cef::ContinuousExponentialFamily) = Ref(cef)
-Base.minimum(cef::ContinuousExponentialFamily) = Base.minimum(cef.base_measure)
-Base.maximum(cef::ContinuousExponentialFamily) = Base.maximum(cef.base_measure)
-Base.extrema(cef::ContinuousExponentialFamily) = Base.extrema(cef.base_measure)
+broadcastable(efd::ExponentialFamilyDistribution) = Ref(efd)
+Base.minimum(efd::ExponentialFamilyDistribution) = Base.minimum(efd.basemeasure)
+Base.maximum(efd::ExponentialFamilyDistribution) = Base.maximum(efd.basemeasure)
+Base.extrema(efd::ExponentialFamilyDistribution) = Base.extrema(efd.basemeasure)
 
 
 
-# some notational clash here for now.
-function logpdf(cef::ContinuousExponentialFamily, x::Real; include_base_measure = true)
-  if include_base_measure
-     log_constant =  -cef.log_normalizing_constant + logpdf(cef.base_measure, x)
+function Distributions.logpdf(efd::ExponentialFamilyDistribution, x::Real; include_basemeasure = true)
+  if include_basemeasure
+     log_constant =  -efd.log_normalizing_constant + logpdf(efd.basemeasure, x)
   else
-     log_constant = -cef.log_normalizing_constant
+     log_constant = -efd.log_normalizing_constant
   end
-  dot(cef.Q(x),cef.α) + log_constant
+  dot(efd.Q(x),efd.α) + log_constant
 end
 
-pdf(cef::ContinuousExponentialFamily, x::Real; kwargs...) = exp(logpdf(cef, x; kwargs...))
+Distributions.pdf(cef::ExponentialFamilyDistribution, x::Real; kwargs...) = exp(Distributions.logpdf(cef, x; kwargs...))
 
-support(cef::Union{ContinuousExponentialFamily, ContinuousExponentialFamilyModel}) = support(cef.base_measure)
-insupport(cef::Union{ContinuousExponentialFamily, ContinuousExponentialFamilyModel}, x::Real) = insupport(cef.base_measure, x)
-
-mutable struct LindseyMethod{ST}
-   grid::ST
-	nedges::Int
-end
-
-LindseyMethod(grid::AbstractVector) = LindseyMethod(grid, length(grid))
-LindseyMethod(nedges::Int) = LindseyMethod(nothing, nedges)
-LindseyMethod() = LindseyMethod(500)
-
-
-
-function fit(cefm::ContinuousExponentialFamilyModel, Xs::AbstractVector{<:Real})
-   fit(cefm, Xs, LindseyMethod())
-end
-
-function fit(cefm::ContinuousExponentialFamilyModel, Xs::AbstractVector, ls::LindseyMethod{Nothing})
-   model_a, model_b = extrema(cefm)
-   data_a, data_b = extrema(Xs) .+ [-0.01; 0.01]
-   lindsey_grid = range( max(model_a, data_a), min(model_b, data_b); length=ls.nedges)
-	ls_updated = LindseyMethod(lindsey_grid)
-   fit(cefm, Xs, ls_updated)
-end
-
-
-function fit(cefm::ContinuousExponentialFamilyModel, Xs::AbstractVector, ls::LindseyMethod{<:AbstractVector})
-   hist = fit(Histogram, Xs, ls.grid)
-	fit(cefm, hist, ls)
-end
-
-function fit(cefm::ContinuousExponentialFamilyModel, hist::Histogram, ls::LindseyMethod)
-    mdpts = StatsBase.midpoints(hist.edges[1])
-
-    keep_idx = insupport.(cefm, mdpts)
-    mdpts = mdpts[keep_idx]
-    #poisson_predictor = cefm.Q.(collect(mdpts))
-	poisson_predictor = vcat(cefm.Q.(mdpts)'...)
-    poisson_predictor = hcat( fill(1.0, length(mdpts)), poisson_predictor)
-	poisson_response = hist.weights[keep_idx]
-
-    poisson_offset = pdf.(cefm.base_measure, mdpts)
-    poisson_fit = fit(GeneralizedLinearModel, poisson_predictor, poisson_response,
-                           Poisson(); offset=poisson_offset)
-
-    αs = coef(poisson_fit)[2:end]
-    ContinuousExponentialFamily(cefm.base_measure, cefm.Q, αs)
-end
+Distributions.support(cef::Union{ExponentialFamilyDistribution, ExponentialFamily}) = support(cef.basemeasure)
+Distributions.insupport(cef::Union{ExponentialFamilyDistribution, ExponentialFamily}, x::Real) = Distributions.insupport(cef.basemeasure, x)
