@@ -1,3 +1,4 @@
+using ApproxFun
 using SpecialExponentialFamilies
 using Test
 using QuadGK

@@ -37,6 +37,7 @@ include("splines.jl")
 include("continuous_exp_families.jl")
 include("lindsey.jl")
 include("logspline_deconvolution.jl")
+include("datasets.jl")
 
 function __init__()
     @require ApproxFun="28f2ccd6-bb30-5033-b560-165f7b14dc2f" include("sample_continuous_exp_families.jl")
