@@ -1,8 +1,12 @@
-# ExponentialFamilies.jl
+```@meta
+CurrentModule = SpecialExponentialFamilies
+```
+
+# SpecialExponentialFamilies
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [ExponentialFamilies]
+Modules = [SpecialExponentialFamilies]
 ```

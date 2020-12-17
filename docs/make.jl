@@ -1,17 +1,21 @@
-using Documenter, ExponentialFamilies
+using SpecialExponentialFamilies
+using Documenter
 
 makedocs(;
-    modules=[ExponentialFamilies],
-    format=Documenter.HTML(),
+    modules=[SpecialExponentialFamilies],
+    authors="Nikos Ignatiadis <nikos.ignatiadis01@gmail.com> and contributors",
+    repo="https://github.com/nignatiadis/SpecialExponentialFamilies.jl/blob/{commit}{path}#L{line}",
+    sitename="ExponentialFamilies.jl",
+    format=Documenter.HTML(;
+        prettyurls=get(ENV, "CI", "false") == "true",
+        canonical="https://nignatiadis.github.io/SpecialExponentialFamilies.jl",
+        assets=String[],
+    ),
     pages=[
         "Home" => "index.md",
     ],
-    repo="https://github.com/nignatiadis/ExponentialFamilies.jl/blob/{commit}{path}#L{line}",
-    sitename="ExponentialFamilies.jl",
-    authors="Nikos Ignatiadis <nikos.ignatiadis01@gmail.com>",
-    assets=String[],
 )
 
-deploydocs(;
-    repo="github.com/nignatiadis/ExponentialFamilies.jl",
-)
+#deploydocs(;
+#    repo="github.com/nignatiadis/SpecialExponentialFamilies.jl",
+#)
