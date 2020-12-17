@@ -48,7 +48,7 @@ function BSplineBasis(boundary_knots :: Tuple{T,T},
                       interior_knots :: Union{Array{T,1}, Nothing} = nothing,
                       order :: Int = 4,
                       intercept :: Bool = false) where T<:Real
-    l_interior_knots = interior_knots == nothing ? 0 : length(interior_knots)
+    l_interior_knots = interior_knots === nothing ? 0 : length(interior_knots)
     df = Int(intercept) + order - 1 + l_interior_knots
     nknots = l_interior_knots + 2*order
     ncoef = nknots - order
@@ -67,7 +67,7 @@ end
 function NSplineBasis(boundary_knots :: Tuple{T,T},
                       interior_knots :: Union{Array{T,1}, Nothing} = nothing,
                       order :: Int = 4,
-                      intercept :: Bool = false) :: NSplineBasis{T} where T<:Real
+                      intercept :: Bool = false) where T<:Real
     bs = BSplineBasis(boundary_knots,interior_knots,order,intercept)
     co = basis(bs,[bs.boundary_knots[1],bs.boundary_knots[2]],2)
     qmat_ = LinearAlgebra.qr(transpose(co)).Q
@@ -219,13 +219,13 @@ function spline_args(x;
                      df :: Int = 3 + Int(intercept),
                      knots :: Union{Array{T,1}, Nothing} = nothing,
                      knots_offset :: Int = 0) where T<:Real
-    if (interior_knots != nothing && boundary_knots != nothing)
+    if (interior_knots !== nothing && boundary_knots !== nothing)
         # pass
-    elseif (knots != nothing) #TODO: Remove?
+    elseif (knots !== nothing) #TODO: Remove?
         boundary_knots = extrema(knots)
         interior_knots = length(knots)==2 ? nothing : knots[2:(length(knots)-1)]
     else
-        if (boundary_knots == nothing)
+        if (boundary_knots === nothing)
             boundary_knots = extrema(x)
         end
         iKnots = df - order + knots_offset + 1 - Int(intercept)
@@ -258,18 +258,6 @@ The keyword arguments include one of:
 - `df :: Int = order - 1 + Int(intercept)`: degrees of freedom
 - `knots :: Union{Array{T,1}, Nothing} = nothing`: full set of knots (excluding repeats)
 - `centre :: Union{T,Nothing} = nothing)`: value to centre the splines
-
-# Examples
-```jldoctest
-julia> Splines2.bs_(collect(0.0:0.2:1.0), df=3)(collect(0.0:0.2:1.0))
-6×3 Array{Float64,2}:
- 0.0    0.0    0.0
- 0.384  0.096  0.008
- 0.432  0.288  0.064
- 0.288  0.432  0.216
- 0.096  0.384  0.512
- 0.0    0.0    1.0
-```
 """
 function bs_(x :: Array{T,1};
             boundary_knots :: Union{Tuple{T,T},Nothing} = nothing,
@@ -310,17 +298,6 @@ The keyword arguments include one of:
 - `centre :: Union{T,Nothing} = nothing)`: value to centre the splines
 - `ders :: Int = 0`: derivatives of the splines
 
-# Examples
-```jldoctest
-julia> Splines2.bs(collect(0.0:0.2:1.0), df=3)
-6×3 Array{Float64,2}:
- 0.0    0.0    0.0
- 0.384  0.096  0.008
- 0.432  0.288  0.064
- 0.288  0.432  0.216
- 0.096  0.384  0.512
- 0.0    0.0    1.0
-```
 """
 function bs(x :: Array{T,1}; ders :: Int = 0, kwargs...) where T<:Real
     bs_(x; kwargs...)(x, ders=ders)
@@ -347,17 +324,6 @@ The keyword arguments include one of:
 - `knots :: Union{Array{T,1}, Nothing} = nothing`: full set of knots (excluding repeats)
 - `centre :: Union{T,Nothing} = nothing)`: value to centre the splines
 
-# Examples
-```jldoctest
-julia> Splines2.ns_(collect(0.0:0.2:1.0), df=3)(collect(0.0:0.2:1.0))
-6×3 Array{Float64,2}:
-  0.0       0.0        0.0
- -0.100444  0.409332  -0.272888
-  0.102383  0.540852  -0.359235
-  0.501759  0.386722  -0.172481
-  0.418872  0.327383   0.217745
- -0.142857  0.428571   0.714286
-```
 """
 function ns_(x;
             boundary_knots :: Union{Tuple{T,T},Nothing} = nothing,

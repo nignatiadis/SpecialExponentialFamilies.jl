@@ -27,7 +27,7 @@ function Distributions.cdf(efm::EFMarginalDistribution, x::Real)
 end
 
 function Empirikos.marginalize(Z::EBayesSample, efd::ExponentialFamilyDistribution)
-    EFMarginalDistribution3(efd, Z)
+    EFMarginalDistribution(efd, Z)
 end
 
 
@@ -37,7 +37,7 @@ Base.@kwdef struct PenalizedMLE{EF<:ExponentialFamily, T<:Real}
 	ef::EF
 	c0::T = 0.01
 	solver = NewtonTrustRegion()
-	optim_options = Optim.Options(show_trace=true, show_every=1, g_reltol=1e-8)
+	optim_options = Optim.Options(show_trace=true, show_every=1, g_reltol=1e-6)
 	initializer = LindseyMethod(ef=ef)
 end
 
@@ -57,7 +57,7 @@ end
 
 Base.broadcastable(fitted::FittedPenalizedMLE) = Ref(fitted)
 
-
+StatsBase.fit(fitted::FittedPenalizedMLE, args...; kwargs...) = fitted
 
 
 function StatsBase.fit(pen::PenalizedMLE, Zs::Empirikos.VectorOrSummary)
@@ -135,7 +135,7 @@ function target_bias_std(fcef::FittedPenalizedMLE,
                          target::Empirikos.EBayesTarget;
 	                     bias_corrected=true,
 						 clip=true)
-	_fun(α) = target(fcef.ef(α))
+	_fun(α) = target(fcef.pen.ef(α))
 	α_opt = fcef.α_opt
 	target_gradient = ForwardDiff.gradient(_fun, α_opt);
 	target_bias = LinearAlgebra.dot(target_gradient, fcef.α_bias)
@@ -155,19 +155,45 @@ end
 function StatsBase.confint(fcef::FittedPenalizedMLE,
                            target::Empirikos.EBayesTarget;
 						   level::Real = 0.95,
-						   clip = true)
+						   clip = true, bias_corrected=true)
 
     α = 1 - level
-	res =  target_bias_std(fced, target; clip=false, bias_corrected = true)
+	res =  target_bias_std(fcef, target; clip=false, bias_corrected=bias_corrected)
+    _estimate = res[:estimated_target]
+    _std = res[:estimated_std]
 
+    q_mult = quantile(Normal(), 1-α/2)*_std
 
-    q_mult = quantile(Normal(), 1-α/2)*res[:estimated_std]
-
-    L,U = res[:estimated_target] .+ (-1,1).*q_mult
+    L,U = _estimate .+ (-1,1).*q_mult
 
 	if clip
 		L, U = clamp.((L,U), extrema(target)... )
 	end
 
-	L,U
+    Empirikos.BiasVarianceConfidenceInterval(target=target, method=nothing, α=α,
+                                            se=_std, estimate=_estimate, lower=L, upper=U,
+                                            halflength=q_mult)
+end
+
+function StatsBase.confint(pmle::Union{PenalizedMLE,FittedPenalizedMLE},
+                           target::Empirikos.EBayesTarget, args...; kwargs...)
+    _fit = StatsBase.fit(pmle, args...)
+    StatsBase.confint(_fit, target; kwargs...)
+end
+
+
+function Base.broadcasted_kwsyntax(::typeof(StatsBase.confint), pmle::PenalizedMLE,
+                         targets, args...; level=0.95)
+    _fit = StatsBase.fit(pmle, args...)
+    _first_ci = StatsBase.confint(_fit, targets[1]; level=level)
+    confint_vec = fill(_first_ci, length(targets))
+    for (index, target) in enumerate(targets[2:end])
+        confint_vec[index+1] = StatsBase.confint(_fit, target; level=level)
+    end
+    confint_vec
+end
+
+function Base.broadcasted(::typeof(StatsBase.confint), pmle::PenalizedMLE,
+    targets, args...)
+    StatsBase.confint.(pmle, targets, args...; level=0.95)
 end
