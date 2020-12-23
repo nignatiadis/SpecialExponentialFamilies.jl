@@ -5,12 +5,21 @@ struct EFMarginalDistribution{EFD, EB, S} <: Distribution{Univariate, S}
     Z::EB
 end
 
+function Base.show(io::IO, ef::EFMarginalDistribution)
+    println(io, "MarginalDistribution")
+    println(io, " Prior")
+    println(io, ef.efd)
+    println(io, " EBayes Sample")
+    print(io, ef.Z)
+end
+
+
 function EFMarginalDistribution(efd::EFD, Z::EB) where {EFD, EB<:Empirikos.ContinuousEBayesSample}
     EFMarginalDistribution{EFD,EB, Continuous}(efd, Z)
 end
 
 
-function Distributions.pdf(efm::EFMarginalDistribution, x)
+function Distributions.pdf(efm::EFMarginalDistribution, x::Real)
     efd = efm.efd
     Z = efm.Z
     _f = μ -> pdf(efd, μ; include_basemeasure=false)*

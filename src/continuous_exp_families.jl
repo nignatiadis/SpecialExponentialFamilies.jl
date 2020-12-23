@@ -32,7 +32,13 @@ function ExponentialFamily(; basemeasure, df=5, scale=true, kwargs...)
    cef
 end
 
-broadcastable(ef::ExponentialFamily) = Ref(ef)
+function Base.show(io::IO, ef::ExponentialFamily)
+    print(io, "Exp. Family")
+    print(io, " | base measure = ")
+    print(io, ef.basemeasure)
+end
+
+Base.broadcastable(ef::ExponentialFamily) = Ref(ef)
 Base.minimum(ef::ExponentialFamily) = Base.minimum(ef.basemeasure)
 Base.maximum(ef::ExponentialFamily) = Base.maximum(ef.basemeasure)
 Base.extrema(ef::ExponentialFamily) = Base.extrema(ef.basemeasure)
@@ -45,6 +51,12 @@ struct ExponentialFamilyDistribution{VF,
     ef::EF
     α::As
     log_normalizing_constant::T
+end
+
+function Base.show(io::IO, ef::ExponentialFamilyDistribution)
+    println(io, "Exponential Family Distribution")
+    println(io, "    | base measure = ", ef.ef.basemeasure)
+    print(io, "      | natural parameters = ", ef.α)
 end
 
 function Base.getproperty(exd::ExponentialFamilyDistribution, sym::Symbol)
