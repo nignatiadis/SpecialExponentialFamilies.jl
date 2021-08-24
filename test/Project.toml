@@ -1,4 +1,4 @@
 [deps]
 ApproxFun = "28f2ccd6-bb30-5033-b560-165f7b14dc2f"
-QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
+Empirikos = "cab608d6-c565-4ea1-96d6-ce5441ba21b0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

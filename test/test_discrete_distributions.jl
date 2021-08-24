@@ -10,11 +10,7 @@ using LaTeXStrings
 
 support_grid = -3:0.2:3
 
-MarronWandSkewedBimodal = MixtureModel([Normal(0,1), Normal(3/2, 1/3)],
-                                        [0.75, 0.25])
 
-MarronWandKurtoticUnimodal = MixtureModel([Normal(0,1), Normal(0, 0.1)],
-                                          [2/3, 1/3])
 
 EfronTwoTowers = MixtureModel( [Uniform(-1.7, -0.7),
                                 Uniform(0.7, 2.7)],
@@ -184,4 +180,3 @@ moment.(d1, 1:5)
 probs(d1.dbn)
 
 moment(dem, [1.0,-1.0,1.0])
-
